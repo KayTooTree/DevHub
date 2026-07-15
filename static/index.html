@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DEVHUB // COMMAND CENTER</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/[email protected]/css/xterm.css">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="scanlines"></div>
+<div class="grid-overlay"></div>
+<div class="vignette"></div>
+
+<div class="hud">
+
+  <!-- HEADER -->
+  <header class="hud-header">
+    <div class="header-left">
+      <div class="brackets">[</div>
+      <h1 class="title">DEV<span class="accent">HUB</span></h1>
+      <div class="brackets">]</div>
+      <span class="subtitle" data-i18n="subtitle">// CYBER COMMAND CENTER</span>
+    </div>
+    <div class="header-right">
+      <button id="lang-toggle" class="lang-btn" title="Sprache wechseln / switch language">EN</button>
+      <div id="date" class="date">-- -- ----</div>
+      <div id="clock" class="clock">00:00:00</div>
+    </div>
+  </header>
+
+  <div class="status-strip">
+    <span class="dot online"></span> <span data-i18n="link_active">VERBINDUNG AKTIV</span>
+    <span class="sep">|</span>
+    <span data-i18n="operator">OPERATOR</span>: <span class="accent">KAY</span>
+    <span class="sep">|</span>
+    <span data-i18n="node">KNOTEN</span>: MÜNSTER-DE
+    <span class="sep">|</span>
+    <span id="uptime-label" data-i18n="sys_uptime">LAUFZEIT</span>: <span id="uptime">--</span>
+  </div>
+
+  <!-- MAIN GRID -->
+  <main class="grid">
+
+    <!-- SYSTEM PANEL -->
+    <section class="panel">
+      <div class="panel-header"><span data-i18n="panel_system">SYSTEMSTATUS</span></div>
+      <div class="panel-body">
+        <div class="stat-row">
+          <span class="stat-label" data-i18n="cpu_load">CPU LAST</span>
+          <div class="bar"><div id="cpu-bar" class="bar-fill"></div></div>
+          <span id="cpu-val" class="stat-val">0%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label" data-i18n="memory">SPEICHER</span>
+          <div class="bar"><div id="ram-bar" class="bar-fill"></div></div>
+          <span id="ram-val" class="stat-val">0%</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label" data-i18n="disk">FESTPLATTE</span>
+          <div class="bar"><div id="disk-bar" class="bar-fill"></div></div>
+          <span id="disk-val" class="stat-val">0%</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- NETWORK PANEL -->
+    <section class="panel">
+      <div class="panel-header"><span data-i18n="panel_network">NETZWERK / IP TRACE</span></div>
+      <div class="panel-body">
+        <div class="kv"><span data-i18n="local_ip">LOKALE IP</span><span id="local-ip" class="val">------</span></div>
+        <div class="kv"><span data-i18n="public_ip">ÖFFENTLICHE IP</span><span id="public-ip" class="val">------</span></div>
+        <div class="kv"><span data-i18n="isp">PROVIDER</span><span id="isp" class="val">------</span></div>
+        <div class="kv"><span data-i18n="location">STANDORT</span><span id="location" class="val">------</span></div>
+        <div class="kv"><span data-i18n="timezone">ZEITZONE</span><span id="timezone" class="val">------</span></div>
+        <div class="kv"><span data-i18n="coords">KOORDINATEN</span><span id="coords" class="val">------</span></div>
+      </div>
+    </section>
+
+    <!-- QUICK LAUNCH PANEL -->
+    <section class="panel">
+      <div class="panel-header"><span data-i18n="panel_launcher">SCHNELLSTART</span></div>
+      <div class="panel-body">
+        <div id="launcher-buttons" class="launcher-grid">
+          <span class="loading">...</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- TERMINAL PANEL (full width, eingebettet) -->
+    <section class="panel panel-wide">
+      <div class="panel-header">
+        <span data-i18n="panel_terminal">LIVE TERMINAL</span>
+        <button id="open-external-term" class="btn btn-small" data-i18n="open_external">EXTERNES FENSTER</button>
+      </div>
+      <div class="panel-body no-pad">
+        <div id="xterm-container" class="xterm-container"></div>
+      </div>
+    </section>
+
+    <!-- REPOS PANEL (wide) -->
+    <section class="panel panel-wide">
+      <div class="panel-header">
+        <span data-i18n="panel_repos">GIT REPOSITORY SYNC</span>
+        <button id="pull-all" class="btn btn-small" data-i18n="pull_all">ALLE PULLEN</button>
+      </div>
+      <div class="panel-body">
+        <table class="repo-table">
+          <thead>
+            <tr>
+              <th data-i18n="th_repo">REPO</th>
+              <th data-i18n="th_branch">BRANCH</th>
+              <th data-i18n="th_status">STATUS</th>
+              <th data-i18n="th_detail">DETAIL</th>
+              <th data-i18n="th_actions">AKTIONEN</th>
+            </tr>
+          </thead>
+          <tbody id="repo-tbody">
+            <tr><td colspan="5" class="loading" data-i18n="scanning">DURCHSUCHE REPOSITORIES...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- PROCESSES PANEL -->
+    <section class="panel">
+      <div class="panel-header"><span data-i18n="panel_processes">TOP PROZESSE</span></div>
+      <div class="panel-body">
+        <table class="mini-table">
+          <thead><tr>
+            <th data-i18n="th_process">PROZESS</th>
+            <th data-i18n="th_cpu">CPU%</th>
+            <th data-i18n="th_mem">MEM%</th>
+          </tr></thead>
+          <tbody id="proc-tbody"><tr><td colspan="3" class="loading">...</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- PORTS PANEL -->
+    <section class="panel">
+      <div class="panel-header"><span data-i18n="panel_ports">OFFENE PORTS</span></div>
+      <div class="panel-body">
+        <table class="mini-table">
+          <thead><tr>
+            <th data-i18n="th_port">PORT</th>
+            <th data-i18n="th_pid">PID</th>
+            <th data-i18n="th_process">PROZESS</th>
+          </tr></thead>
+          <tbody id="ports-tbody"><tr><td colspan="3" class="loading">...</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- NOTES PANEL -->
+    <section class="panel">
+      <div class="panel-header">
+        <span data-i18n="panel_notes">SCHNELLNOTIZEN</span>
+        <span id="notes-status" class="notes-status"></span>
+      </div>
+      <div class="panel-body">
+        <textarea id="notes-area" class="notes-area" data-i18n-placeholder="notes_placeholder"
+                  placeholder="Notizen hier eintippen — speichert automatisch..."></textarea>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="hud-footer">
+    <span>DEVHUB v2.0</span>
+    <span class="sep">|</span>
+    <span id="conn-status" class="conn-ok" data-i18n="footer_ok">BACKEND VERBINDUNG: OK</span>
+  </footer>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/[email protected]/lib/xterm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/[email protected]/lib/xterm-addon-fit.js"></script>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="/static/i18n.js"></script>
+<script src="/static/terminal.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "language": "en",
+  "shell_windows": "powershell.exe",
+  "shell_unix": "bash",
+  "quick_launch": [
+    {
+      "label": "VS Code",
+      "command": "code ."
+    },
+    {
+      "label": "Explorer",
+      "command": "explorer.exe ."
+    },
+    {
+      "label": "Windows Terminal",
+      "command": "wt.exe"
+    },
+    {
+      "label": "Docker Desktop",
+      "command": "\"C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe\""
+    }
+  ]
+}
