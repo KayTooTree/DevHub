@@ -1,23 +1,12 @@
 {
-  "language": "en",
+  "language": "de",
   "shell_windows": "powershell.exe",
   "shell_unix": "bash",
+  "ping_host": "8.8.8.8",
   "quick_launch": [
-    {
-      "label": "VS Code",
-      "command": "code ."
-    },
-    {
-      "label": "Explorer",
-      "command": "explorer.exe ."
-    },
-    {
-      "label": "Windows Terminal",
-      "command": "wt.exe"
-    },
-    {
-      "label": "Docker Desktop",
-      "command": "\"C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe\""
-    }
+    { "label": "VS Code",           "command": "code ." },
+    { "label": "Explorer",          "command": "explorer.exe ." },
+    { "label": "Windows Terminal",  "command": "wt.exe" },
+    { "label": "Docker Desktop",    "command": "\"C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe\"" }
   ]
 }

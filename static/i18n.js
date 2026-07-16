@@ -62,6 +62,12 @@ const I18N = {
     ahead_suffix: "Commit(s) voraus",
     diverged_label: "vor",
     up_to_date: "Alles aktuell",
+    ping: "PING",
+    panel_docker: "DOCKER CONTAINER",
+    th_container: "CONTAINER",
+    th_image: "IMAGE",
+    docker_unavailable: "Docker nicht verfügbar",
+    no_containers: "Keine laufenden Container",
   },
   en: {
     subtitle: "// CYBER COMMAND CENTER",
@@ -115,6 +121,12 @@ const I18N = {
     ahead_suffix: "commit(s) ahead",
     diverged_label: "ahead",
     up_to_date: "Everything up to date",
+    ping: "PING",
+    panel_docker: "DOCKER CONTAINERS",
+    th_container: "CONTAINER",
+    th_image: "IMAGE",
+    docker_unavailable: "Docker not available",
+    no_containers: "No running containers",
   },
 };
 

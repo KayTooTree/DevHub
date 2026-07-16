@@ -11,6 +11,16 @@
 </head>
 <body>
 
+<!-- ================= BOOT SCREEN ================= -->
+<div id="boot-screen" class="boot-screen">
+  <div class="boot-content">
+    <pre class="boot-ascii">▓▓▓ D E V H U B ▓▓▓</pre>
+    <div class="boot-lines" id="boot-lines"></div>
+    <div class="boot-bar"><div class="boot-bar-fill" id="boot-bar-fill"></div></div>
+    <button id="boot-skip" class="boot-skip">SKIP ▸</button>
+  </div>
+</div>
+
 <div class="scanlines"></div>
 <div class="grid-overlay"></div>
 <div class="vignette"></div>
@@ -35,11 +45,17 @@
   <div class="status-strip">
     <span class="dot online"></span> <span data-i18n="link_active">VERBINDUNG AKTIV</span>
     <span class="sep">|</span>
-    <span data-i18n="operator">OPERATOR</span>: <span class="accent">KAY</span>
+    <span data-i18n="operator">OPERATOR</span>: <span id="operator-name" class="accent">--</span>
     <span class="sep">|</span>
-    <span data-i18n="node">KNOTEN</span>: MÜNSTER-DE
+    <span data-i18n="node">KNOTEN</span>: <span id="hostname-val">--</span>
     <span class="sep">|</span>
     <span id="uptime-label" data-i18n="sys_uptime">LAUFZEIT</span>: <span id="uptime">--</span>
+    <span class="sep">|</span>
+    <span id="ping-label" data-i18n="ping">PING</span>: <span id="ping-val">--</span>
+    <span id="battery-wrap" class="battery-wrap" style="display:none;">
+      <span class="sep">|</span>
+      <span id="battery-icon">🔋</span> <span id="battery-val">--</span>
+    </span>
   </div>
 
   <!-- MAIN GRID -->
@@ -90,14 +106,17 @@
       </div>
     </section>
 
-    <!-- TERMINAL PANEL (full width, eingebettet) -->
+    <!-- TERMINAL PANEL (full width, eingebettet, mit Tabs) -->
     <section class="panel panel-wide">
       <div class="panel-header">
         <span data-i18n="panel_terminal">LIVE TERMINAL</span>
         <button id="open-external-term" class="btn btn-small" data-i18n="open_external">EXTERNES FENSTER</button>
       </div>
       <div class="panel-body no-pad">
-        <div id="xterm-container" class="xterm-container"></div>
+        <div class="term-tabs" id="term-tabs">
+          <button id="term-add-btn" class="term-tab-add" title="Neuer Tab">+</button>
+        </div>
+        <div class="term-panes" id="term-panes"></div>
       </div>
     </section>
 
@@ -155,6 +174,21 @@
       </div>
     </section>
 
+    <!-- DOCKER PANEL -->
+    <section class="panel">
+      <div class="panel-header"><span data-i18n="panel_docker">DOCKER CONTAINER</span></div>
+      <div class="panel-body">
+        <table class="mini-table">
+          <thead><tr>
+            <th data-i18n="th_container">CONTAINER</th>
+            <th data-i18n="th_status">STATUS</th>
+            <th data-i18n="th_image">IMAGE</th>
+          </tr></thead>
+          <tbody id="docker-tbody"><tr><td colspan="3" class="loading">...</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
     <!-- NOTES PANEL -->
     <section class="panel">
       <div class="panel-header">
@@ -170,7 +204,7 @@
   </main>
 
   <footer class="hud-footer">
-    <span>DEVHUB v2.0</span>
+    <span>DEVHUB v3.0</span>
     <span class="sep">|</span>
     <span id="conn-status" class="conn-ok" data-i18n="footer_ok">BACKEND VERBINDUNG: OK</span>
   </footer>
@@ -181,6 +215,7 @@
 <script src="https://cdn.jsdelivr.net/npm/[email protected]/lib/xterm-addon-fit.js"></script>
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script src="/static/i18n.js"></script>
+<script src="/static/boot.js"></script>
 <script src="/static/terminal.js"></script>
 <script src="/static/app.js"></script>
 </body>

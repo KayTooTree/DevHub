@@ -7,8 +7,12 @@ Internetverbindung nicht den ganzen Server zum Absturz bringt — das
 Dashboard zeigt dann einfach "N/A" statt einer Fehlerseite.
 """
 
+import getpass
 import os
+import platform
 import socket
+import subprocess
+import sys
 import time
 
 try:
@@ -21,10 +25,69 @@ try:
 except ImportError:
     psutil = None
 
+IS_WINDOWS = sys.platform == "win32"
+
 # Persistenter Cache fuer Prozess-Objekte, damit psutil sinnvolle
 # CPU-Prozentwerte liefern kann (die erste Messung pro Prozess ist immer 0.0,
 # siehe psutil-Doku: cpu_percent() misst die Zeit *seit dem letzten Aufruf*).
 _proc_cache = {}
+
+
+def get_username():
+    """Der tatsaechliche Windows/Unix-Benutzername des eingeloggten Operators."""
+    try:
+        return getpass.getuser()
+    except Exception:
+        return os.environ.get("USERNAME") or os.environ.get("USER") or "OPERATOR"
+
+
+def get_hostname():
+    try:
+        return socket.gethostname()
+    except Exception:
+        return "UNKNOWN-HOST"
+
+
+def get_battery():
+    """Akkustatus, falls vorhanden (Laptops). None auf Desktop-PCs."""
+    if psutil is None or not hasattr(psutil, "sensors_battery"):
+        return None
+    try:
+        batt = psutil.sensors_battery()
+        if batt is None:
+            return None
+        return {
+            "percent": round(batt.percent, 1),
+            "plugged": bool(batt.power_plugged),
+        }
+    except Exception:
+        return None
+
+
+def ping_latency(host="8.8.8.8", timeout=1.5):
+    """Einfache ICMP-Ping-Latenz in ms — ein schneller Gesundheitscheck der
+    Internetverbindung. Gibt None zurueck, wenn ping nicht verfuegbar ist
+    oder die Anfrage fehlschlaegt (z.B. ICMP von der Firewall geblockt)."""
+    try:
+        if IS_WINDOWS:
+            cmd = ["ping", "-n", "1", "-w", str(int(timeout * 1000)), host]
+        else:
+            cmd = ["ping", "-c", "1", "-W", str(int(timeout)), host]
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=timeout + 1,
+            creationflags=subprocess.CREATE_NO_WINDOW if IS_WINDOWS else 0,
+        )
+        if result.returncode != 0:
+            return None
+        out = result.stdout
+        import re
+        # Windows: "Zeit=12ms" / "time=12ms"  |  Unix: "time=12.3 ms"
+        match = re.search(r"(?:time|zeit)[=<]\s*([\d.]+)", out, re.IGNORECASE)
+        if match:
+            return round(float(match.group(1)), 1)
+        return None
+    except Exception:
+        return None
 
 
 def get_local_ip():

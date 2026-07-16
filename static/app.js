@@ -1,9 +1,8 @@
 /*
  * app.js — Kernlogik des DEVHUB-Dashboards.
  *
- * Kuemmert sich um alles ausser dem eingebetteten Terminal (siehe terminal.js)
- * und der Sprachverwaltung (siehe i18n.js): Uhr, System/Netzwerk-Status,
- * Git-Repo-Tabelle, Top-Prozesse, offene Ports, Notizen und Quick-Launch.
+ * Kuemmert sich um alles ausser dem eingebetteten Terminal (siehe terminal.js),
+ * dem Boot-Screen (siehe boot.js) und der Sprachverwaltung (siehe i18n.js).
  */
 
 const API = "";
@@ -54,6 +53,19 @@ async function refreshStatus() {
       document.getElementById("uptime").textContent = fmtUptime(sys.boot_time);
     }
 
+    document.getElementById("operator-name").textContent = data.username || "OPERATOR";
+    document.getElementById("hostname-val").textContent = data.hostname || "--";
+
+    const battWrap = document.getElementById("battery-wrap");
+    if (data.battery) {
+      battWrap.style.display = "inline";
+      const icon = document.getElementById("battery-icon");
+      icon.textContent = data.battery.plugged ? "⚡" : "🔋";
+      document.getElementById("battery-val").textContent = `${data.battery.percent}%`;
+    } else {
+      battWrap.style.display = "none";
+    }
+
     document.getElementById("local-ip").textContent = data.local_ip || "N/A";
     const pub = data.public || {};
     if (!pub.error) {
@@ -70,6 +82,16 @@ async function refreshStatus() {
   } catch (e) {
     document.getElementById("conn-status").textContent = t("footer_lost");
     document.getElementById("conn-status").className = "conn-fail";
+  }
+}
+
+async function refreshPing() {
+  try {
+    const res = await fetch(`${API}/api/ping`);
+    const data = await res.json();
+    document.getElementById("ping-val").textContent = data.ms != null ? `${data.ms}ms` : "--";
+  } catch (e) {
+    document.getElementById("ping-val").textContent = "--";
   }
 }
 
@@ -92,6 +114,16 @@ function repoDetail(repo) {
   }
 }
 
+function githubBadge(repo) {
+  const gh = repo.github_stats;
+  if (!gh || gh.error) return "";
+  const parts = [];
+  if (gh.stars != null) parts.push(`⭐ ${gh.stars}`);
+  if (gh.open_issues != null) parts.push(`⚠ ${gh.open_issues}`);
+  if (!parts.length) return "";
+  return `<span class="gh-badge">${parts.join(" · ")}</span>`;
+}
+
 async function refreshRepos() {
   try {
     const res = await fetch(`${API}/api/repos`);
@@ -110,7 +142,7 @@ async function refreshRepos() {
       const dirtyFlag = repo.dirty ? `<span class="dirty-flag">● ${repo.dirty} ${t("dirty_suffix")}</span>` : "";
 
       tr.innerHTML = `
-        <td>${escapeHtml(repo.name)}</td>
+        <td>${escapeHtml(repo.name)} ${githubBadge(repo)}</td>
         <td>${escapeHtml(repo.branch || "-")}</td>
         <td><span class="badge ${repo.status}">${repo.status.replace(/_/g, " ")}</span></td>
         <td>${escapeHtml(repoDetail(repo))}${dirtyFlag}</td>
@@ -172,9 +204,7 @@ async function refreshProcesses() {
       return;
     }
     tbody.innerHTML = procs
-      .map(
-        (p) => `<tr><td>${escapeHtml(p.name)}</td><td>${p.cpu.toFixed(1)}</td><td>${p.mem.toFixed(1)}</td></tr>`
-      )
+      .map((p) => `<tr><td>${escapeHtml(p.name)}</td><td>${p.cpu.toFixed(1)}</td><td>${p.mem.toFixed(1)}</td></tr>`)
       .join("");
   } catch (e) {
     /* still */
@@ -195,9 +225,39 @@ async function refreshPorts() {
       return;
     }
     tbody.innerHTML = ports
-      .map(
-        (p) => `<tr><td>${p.port}</td><td>${p.pid ?? "-"}</td><td>${escapeHtml(p.process)}</td></tr>`
-      )
+      .map((p) => `<tr><td>${p.port}</td><td>${p.pid ?? "-"}</td><td>${escapeHtml(p.process)}</td></tr>`)
+      .join("");
+  } catch (e) {
+    /* still */
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Docker-Container
+// ---------------------------------------------------------------------------
+
+async function refreshDocker() {
+  try {
+    const res = await fetch(`${API}/api/docker`);
+    const data = await res.json();
+    const tbody = document.getElementById("docker-tbody");
+    if (!data.available) {
+      tbody.innerHTML = `<tr><td colspan="3" class="loading">${t("docker_unavailable")}</td></tr>`;
+      return;
+    }
+    if (!data.containers.length) {
+      tbody.innerHTML = `<tr><td colspan="3" class="loading">${t("no_containers")}</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = data.containers
+      .map((c) => {
+        const up = /up/i.test(c.status);
+        return `<tr>
+          <td>${escapeHtml(c.name)}</td>
+          <td class="${up ? "docker-up" : "docker-down"}">${escapeHtml(c.status)}</td>
+          <td>${escapeHtml(c.image)}</td>
+        </tr>`;
+      })
       .join("");
   } catch (e) {
     /* still */
@@ -296,14 +356,18 @@ function escapeHtml(str) {
   await initI18n();
   tickClock();
   refreshStatus();
+  refreshPing();
   refreshRepos();
   refreshProcesses();
   refreshPorts();
+  refreshDocker();
   loadNotes();
   loadLauncher();
 
   setInterval(refreshStatus, 4000);
+  setInterval(refreshPing, 12000);
   setInterval(refreshRepos, 15000);
   setInterval(refreshProcesses, 5000);
   setInterval(refreshPorts, 10000);
+  setInterval(refreshDocker, 8000);
 })();

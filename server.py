@@ -35,7 +35,7 @@ from flask import Flask, jsonify, request, send_from_directory
 from flask_socketio import SocketIO
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import system_info, git_tools, pty_bridge  # noqa: E402
+from helpers import system_info, git_tools, pty_bridge, docker_tools, github_tools  # noqa: E402
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
@@ -49,6 +49,7 @@ DEFAULT_CONFIG = {
     "language": "de",
     "shell_windows": "powershell.exe",
     "shell_unix": "bash",
+    "ping_host": "8.8.8.8",
     "quick_launch": [
         {"label": "VS Code", "command": "code ."},
         {"label": "Explorer", "command": "explorer.exe ." if IS_WINDOWS else "xdg-open ."},
@@ -104,7 +105,17 @@ def api_status():
         "local_ip": system_info.get_local_ip(),
         "public": system_info.get_public_ip_and_geo(),
         "system": system_info.get_system_stats(),
+        "username": system_info.get_username(),
+        "hostname": system_info.get_hostname(),
+        "battery": system_info.get_battery(),
     })
+
+
+@app.route("/api/ping")
+def api_ping():
+    cfg = load_config()
+    ms = system_info.ping_latency(cfg.get("ping_host", "8.8.8.8"))
+    return jsonify({"ms": ms})
 
 
 @app.route("/api/processes")
@@ -115,6 +126,11 @@ def api_processes():
 @app.route("/api/ports")
 def api_ports():
     return jsonify(system_info.listening_ports())
+
+
+@app.route("/api/docker")
+def api_docker():
+    return jsonify(docker_tools.docker_status())
 
 
 # ---------------------------------------------------------------------------
@@ -131,6 +147,9 @@ def api_repos():
         info = git_tools.check_repo_status(path)
         info["name"] = name
         info["path"] = path
+        github_slug = repo.get("github")
+        if github_slug:
+            info["github_stats"] = github_tools.get_repo_stats(github_slug)
         results.append(info)
     return jsonify(results)
 
