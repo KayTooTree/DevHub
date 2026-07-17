@@ -24,6 +24,12 @@ try:
 except ImportError:
     Presence = None
 
+# Der Link-Button ist bewusst fest verankert (nicht ueber config.json
+# konfigurierbar) -- alles andere (Text, Live-Status, Bild) laesst sich im
+# DevHub Dashboard ueber das Zahnrad-Symbol einstellen.
+DEVHUB_BUTTON_LABEL = "View DevHub"
+DEVHUB_BUTTON_URL = "https://github.com/KayTooTree/DevHub.git"
+
 _lock = threading.Lock()
 _client = None
 _current_client_id = None
@@ -81,8 +87,8 @@ def _push_update(cfg, live_state_text):
     if state_text:
         kwargs["state"] = state_text
 
-    if cfg.get("button_label") and cfg.get("button_url"):
-        kwargs["buttons"] = [{"label": cfg["button_label"], "url": cfg["button_url"]}]
+    # Fest verankert -- immer der DevHub-GitHub-Link, unabhaengig von der Config.
+    kwargs["buttons"] = [{"label": DEVHUB_BUTTON_LABEL, "url": DEVHUB_BUTTON_URL}]
 
     if cfg.get("large_image_key"):
         kwargs["large_image"] = cfg["large_image_key"]

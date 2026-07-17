@@ -759,3 +759,121 @@ html, body {
 .discord-status-off { color: var(--cyan-dim); }
 .discord-status-connected { color: var(--green); }
 .discord-status-waiting { color: var(--amber); }
+
+/* ---------- Settings / Onboarding Modal ---------- */
+
+.settings-welcome-hint {
+  font-size: 12px;
+  color: var(--cyan-dim);
+  line-height: 1.6;
+  padding: 0 20px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.settings-hint {
+  font-size: 12px;
+  color: var(--cyan-dim);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+.settings-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 16px 0;
+}
+.settings-repo-list { display: flex; flex-direction: column; gap: 8px; }
+.settings-repo-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  background: rgba(0,0,0,0.2);
+}
+.settings-repo-info { display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
+.settings-repo-name { color: var(--text); font-weight: bold; }
+.settings-repo-path { color: var(--cyan-dim); font-size: 11px; word-break: break-all; }
+.settings-repo-remove {
+  flex-shrink: 0;
+  color: var(--red);
+  border-color: var(--red);
+}
+.settings-repo-remove:hover { background: var(--red); color: #04100f; }
+
+.hidden { display: none !important; }
+
+.form-row-checkbox label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+.form-row-checkbox input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--cyan);
+}
+
+/* ---------- Toggle Switch ---------- */
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  cursor: pointer;
+  padding: 4px 0;
+}
+.toggle-label-text {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
+}
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: rgba(53, 240, 232, 0.08);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.toggle-slider::before {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  left: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--cyan-dim);
+  border-radius: 50%;
+  transition: transform 0.2s ease, background 0.2s ease;
+  box-shadow: 0 0 4px rgba(0,0,0,0.4);
+}
+.toggle-switch input:checked + .toggle-slider {
+  background: rgba(77, 255, 136, 0.15);
+  border-color: var(--green);
+}
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translate(20px, -50%);
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+}
+.toggle-switch input:focus-visible + .toggle-slider {
+  outline: 1px solid var(--cyan);
+}

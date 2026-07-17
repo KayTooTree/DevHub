@@ -30,6 +30,9 @@ auf deinem PC.
 - **Discord Rich Presence**: zeigt in deinem Discord-Profil "Powered by
   DevHub" mit Link-Button, optional mit Live-Status (z.B. "2 repos behind").
   Komplett konfigurierbar, siehe Abschnitt weiter unten.
+- **Setup-Wizard beim ersten Start**: Anzeigename und Repos direkt im
+  Dashboard eintragen, kein manuelles config.json-Editieren nötig. Über das
+  Zahnrad-Symbol oben rechts jederzeit wieder erreichbar.
 
 ## Alle Features im Überblick
 
@@ -146,49 +149,59 @@ beliebigen Befehle. Der API-Key jedes Servers bleibt ausschließlich in
 ## 8. Discord Rich Presence (optional)
 
 Zeigt in deinem Discord-Profil an, dass DevHub läuft — standardmäßig
-"Powered by DevHub" mit einem Link-Button, optional mit Live-Status aus
-dem Dashboard. Läuft komplett lokal über die Discord-IPC-Schnittstelle
-(braucht den Discord-Desktop-Client offen auf demselben Rechner).
+"Powered by DevHub" mit einem fest verankerten Link-Button zum
+[DevHub-Repo](https://github.com/KayTooTree/DevHub.git), optional mit
+Live-Status aus dem Dashboard. Läuft komplett lokal über die
+Discord-IPC-Schnittstelle (braucht den Discord-Desktop-Client offen auf
+demselben Rechner).
 
-**Einrichtung (einmalig, ~5 Minuten):**
+**Der Link-Button ist absichtlich nicht konfigurierbar** — er zeigt immer
+auf das DevHub-Repo, fest im Code verankert (`helpers/discord_rpc.py`).
+Alles andere lässt sich bequem im Dashboard einstellen, kein manuelles
+Editieren von `config.json` nötig:
 
 1. Geh zu [discord.com/developers/applications](https://discord.com/developers/applications)
    → "New Application" → beliebigen Namen vergeben (erscheint nirgends im
    Profil, ist nur intern)
 2. Auf der "General Information"-Seite die **Application ID** kopieren
-3. In `config.json` unter `discord_rpc.client_id` einfügen:
+3. Im DevHub-Dashboard: **Zahnrad (⚙)** → Reiter **"DISCORD"** →
+   Application ID einfügen, Rest nach Wunsch anpassen, "Speichern"
+4. Discord sollte innerhalb von ~15 Sekunden die Rich Presence anzeigen
+   (Fußzeile im Dashboard zeigt "DISCORD RPC: ●" sobald verbunden)
 
-```json
-"discord_rpc": {
-  "enabled": true,
-  "client_id": "DEINE_APPLICATION_ID_HIER",
-  "show_live_status": true,
-  "details": "Powered by DevHub",
-  "button_label": "View DevHub",
-  "button_url": "https://github.com/DEIN_USER/devhub"
-}
-```
-
-4. DevHub neu starten — Discord sollte innerhalb von ~15 Sekunden die
-   Rich Presence anzeigen (Fußzeile im Dashboard zeigt "DISCORD RPC: ●"
-   sobald verbunden)
-
-**Alle Optionen:**
+**Einstellbar über den Discord-Reiter im Zahnrad-Menü:**
 
 | Feld | Bedeutung |
 |---|---|
-| `enabled` | RPC an/aus |
-| `client_id` | Application ID aus dem Discord Developer Portal |
-| `show_live_status` | zeigt live "X repos behind" / "Y Terminal-Sessions" als zweite Zeile |
-| `details` | erste Zeile, falls `show_live_status: false` oder als Titel |
-| `state` | zweite Zeile (statischer Text), nur wenn `show_live_status: false` |
-| `button_label` / `button_url` | Link-Button im Profil (frei anpassbar — zeig auf euer eigenes Repo/Website statt auf DevHub, wenn gewünscht) |
-| `large_image_key` / `large_image_text` | optional: Bild-Asset-Key aus dem Developer Portal ("Rich Presence" → "Art Assets"), leer lassen wenn nicht gewünscht |
+| Aktivieren | RPC an/aus |
+| Application ID | aus dem Discord Developer Portal |
+| Erste Zeile (Details) | Haupttext, z.B. "Powered by DevHub" |
+| Live-Status anzeigen | zeigt live "X repos behind" / "Y Terminal-Sessions" als zweite Zeile |
+| Zweite Zeile (statisch) | nur relevant, wenn Live-Status aus ist |
+| Bild-Asset-Key / Tooltip-Text | optional: Key aus dem Developer Portal ("Rich Presence" → "Art Assets"), leer lassen wenn nicht gewünscht |
 
 Ohne gesetzte `client_id` bleibt das Feature inaktiv (kein Fehler, einfach
 kein RPC). Fehlt `pypresence` oder läuft Discord nicht, läuft DevHub
 trotzdem ganz normal weiter — die Fußzeile zeigt dann "DISCORD RPC: N/A"
 bzw. "...".
+
+---
+
+## 9. Erstlauf-Setup & Einstellungen
+
+Beim allerersten Start öffnet sich automatisch ein kurzer Setup-Wizard im
+Dashboard:
+
+- **Profil-Reiter**: Anzeigename setzen (landet künftig im Audit-Log
+  verlinkter Server, statt dass du das manuell in `config.json` einträgst)
+- **Repos-Reiter**: Repos direkt eintragen (Name, lokaler Pfad, optional
+  GitHub-Slug für die Sterne/Issues-Badge) — spart das manuelle Bearbeiten
+  von `repos.json`
+
+Danach jederzeit über das **Zahnrad-Symbol (⚙)** oben rechts im Header
+wieder erreichbar, um Anzeigename oder Repos zu ändern. Wer die manuelle
+Config-Datei bevorzugt, kann `repos.json`/`config.json` natürlich weiterhin
+direkt bearbeiten — beide Wege schreiben in dieselben Dateien.
 
 ---
 
@@ -217,6 +230,7 @@ devhub/
     terminal.js                 xterm.js + Tabs + Socket.IO-Anbindung
     app.js                       Restliche Dashboard-Logik
     servers.js                   Remote-Server-Karten + 4-Reiter-Panel
+    settings.js                   Setup-Wizard + Einstellungen-Modal
 ```
 
 **Warum ein Backend?** Eine reine HTML-Seite darf aus Sicherheitsgründen

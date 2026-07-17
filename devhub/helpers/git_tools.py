@@ -47,6 +47,11 @@ def load_repos(repos_file: Path):
         return []
 
 
+def save_repos(repos_file: Path, repos):
+    with open(repos_file, "w", encoding="utf-8") as f:
+        json.dump(repos, f, indent=2, ensure_ascii=False)
+
+
 def check_repo_status(path):
     p = Path(path)
     if not path or not p.exists():

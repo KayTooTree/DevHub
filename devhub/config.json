@@ -23,14 +23,15 @@
     }
   ],
   "discord_rpc": {
-    "enabled": true,
-    "client_id": "",
-    "show_live_status": true,
-    "details": "Powered by DevHub",
-    "state": "",
     "button_label": "View DevHub",
     "button_url": "https://github.com/DEIN_USER/devhub",
-    "large_image_key": "",
-    "large_image_text": ""
-  }
+    "client_id": "1155041073945645096",
+    "details": "Thinking of a new project",
+    "enabled": true,
+    "large_image_key": "bild_2026-07-15_063834655",
+    "large_image_text": "test2",
+    "show_live_status": false,
+    "state": "test"
+  },
+  "onboarding_complete": true
 }
