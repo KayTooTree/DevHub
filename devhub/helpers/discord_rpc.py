@@ -27,7 +27,7 @@ except ImportError:
 # Der Link-Button ist bewusst fest verankert (nicht ueber config.json
 # konfigurierbar) -- alles andere (Text, Live-Status, Bild) laesst sich im
 # DevHub Dashboard ueber das Zahnrad-Symbol einstellen.
-DEVHUB_BUTTON_LABEL = "View DevHub"
+DEVHUB_BUTTON_LABEL = "Powered by DevHub"
 DEVHUB_BUTTON_URL = "https://github.com/KayTooTree/DevHub.git"
 
 _lock = threading.Lock()
