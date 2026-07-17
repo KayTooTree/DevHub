@@ -1,0 +1,36 @@
+{
+  "language": "de",
+  "shell_windows": "powershell.exe",
+  "shell_unix": "bash",
+  "ping_host": "8.8.8.8",
+  "operator_name": "Kay",
+  "quick_launch": [
+    {
+      "label": "VS Code",
+      "command": "code ."
+    },
+    {
+      "label": "Explorer",
+      "command": "explorer.exe ."
+    },
+    {
+      "label": "Windows Terminal",
+      "command": "wt.exe"
+    },
+    {
+      "label": "Docker Desktop",
+      "command": "\"C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe\""
+    }
+  ],
+  "discord_rpc": {
+    "enabled": true,
+    "client_id": "",
+    "show_live_status": true,
+    "details": "Powered by DevHub",
+    "state": "",
+    "button_label": "View DevHub",
+    "button_url": "https://github.com/DEIN_USER/devhub",
+    "large_image_key": "",
+    "large_image_text": ""
+  }
+}

@@ -17,6 +17,8 @@ IS_WINDOWS = sys.platform == "win32"
 
 def run_git(args, cwd, timeout=15):
     """Fuehrt einen git-Befehl aus und gibt (returncode, stdout, stderr) zurueck."""
+    if not Path(cwd).exists():
+        return -1, "", f"Arbeitsverzeichnis existiert nicht: {cwd}"
     try:
         result = subprocess.run(
             ["git"] + args,

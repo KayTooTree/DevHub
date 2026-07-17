@@ -18,6 +18,22 @@ Lokaler Server auf Basis von Flask + Flask-SocketIO. Bindet an 127.0.0.1
     POST /api/config          -> Konfiguration aendern (persistiert in config.json)
     POST /api/launch          -> Quick-Launch-Befehl ausfuehren
     POST /api/terminal        -> oeffnet zusaetzlich ein eigenstaendiges Shell-Fenster
+    GET  /api/discord/status  -> Verbindungsstatus der Discord Rich Presence
+
+    GET  /api/servers                       -> Liste verlinkter Remote-Server (ohne Token)
+    POST /api/servers                       -> Server hinzufuegen {name, host, port, token}
+    DEL  /api/servers/<name>                -> Server entfernen
+    GET  /api/servers/<name>/health          -> Erreichbarkeits-Check
+    GET  /api/servers/<name>/status          -> Remote-Systemstatus
+    GET  /api/servers/<name>/processes       -> Remote-Top-Prozesse
+    GET  /api/servers/<name>/ports           -> Remote-offene-Ports
+    GET  /api/servers/<name>/docker          -> Remote-Docker-Status
+    GET  /api/servers/<name>/repos           -> Remote-Git-Status
+    POST /api/servers/<name>/repos/pull      -> Remote git pull (ein Repo)
+    POST /api/servers/<name>/repos/pull_all  -> Remote git pull (alle Repos)
+    GET  /api/servers/<name>/notes           -> geteilte Notizen auf dem Server
+    POST /api/servers/<name>/notes           -> Notiz an den Server senden
+    GET  /api/servers/<name>/logs            -> Audit-Log des Servers
 
   WebSocket (Namespace /pty):
     Verbindet xterm.js im Browser mit einer echten Shell (PowerShell/bash)
@@ -28,6 +44,7 @@ import json
 import os
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -35,13 +52,14 @@ from flask import Flask, jsonify, request, send_from_directory
 from flask_socketio import SocketIO
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import system_info, git_tools, pty_bridge, docker_tools, github_tools  # noqa: E402
+from helpers import system_info, git_tools, pty_bridge, docker_tools, github_tools, remote_agent, discord_rpc  # noqa: E402
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 REPOS_FILE = BASE_DIR / "repos.json"
 CONFIG_FILE = BASE_DIR / "config.json"
 NOTES_FILE = BASE_DIR / "notes.txt"
+SERVERS_FILE = BASE_DIR / "servers.json"
 
 IS_WINDOWS = sys.platform == "win32"
 
@@ -50,10 +68,22 @@ DEFAULT_CONFIG = {
     "shell_windows": "powershell.exe",
     "shell_unix": "bash",
     "ping_host": "8.8.8.8",
+    "operator_name": "",
     "quick_launch": [
         {"label": "VS Code", "command": "code ."},
         {"label": "Explorer", "command": "explorer.exe ." if IS_WINDOWS else "xdg-open ."},
     ],
+    "discord_rpc": {
+        "enabled": True,
+        "client_id": "",
+        "show_live_status": True,
+        "details": "Powered by DevHub",
+        "state": "",
+        "button_label": "View DevHub",
+        "button_url": "https://github.com/DEIN_USER/devhub",
+        "large_image_key": "",
+        "large_image_text": "",
+    },
 }
 
 app = Flask(__name__, static_folder=None)
@@ -69,7 +99,12 @@ def load_config():
         try:
             with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                 cfg = json.load(f)
-            return {**DEFAULT_CONFIG, **cfg}
+            merged = {**DEFAULT_CONFIG, **cfg}
+            # discord_rpc ist verschachtelt -- fehlende Unterfelder (z.B. nach
+            # einem Update) sollen aus den Defaults aufgefuellt werden, statt
+            # den ganzen Block zu verlieren.
+            merged["discord_rpc"] = {**DEFAULT_CONFIG["discord_rpc"], **cfg.get("discord_rpc", {})}
+            return merged
         except Exception:
             return dict(DEFAULT_CONFIG)
     return dict(DEFAULT_CONFIG)
@@ -137,6 +172,9 @@ def api_docker():
 # Git-Repos
 # ---------------------------------------------------------------------------
 
+_repo_status_cache = {"ts": 0, "behind": 0}
+
+
 @app.route("/api/repos")
 def api_repos():
     repos = git_tools.load_repos(REPOS_FILE)
@@ -151,6 +189,11 @@ def api_repos():
         if github_slug:
             info["github_stats"] = github_tools.get_repo_stats(github_slug)
         results.append(info)
+
+    _repo_status_cache["ts"] = time.time()
+    _repo_status_cache["behind"] = sum(
+        1 for r in results if r.get("status") in ("BEHIND", "DIVERGED")
+    )
     return jsonify(results)
 
 
@@ -219,6 +262,29 @@ def api_set_config():
 
 
 # ---------------------------------------------------------------------------
+# Discord Rich Presence
+# ---------------------------------------------------------------------------
+
+def get_live_state_text():
+    """Kurzer Live-Status fuer die Discord Rich Presence, z.B. '2 Repos
+    hinter Remote · 1 Terminal-Session'. Nutzt den Repo-Cache aus
+    /api/repos statt selbst neue git-fetches auszuloesen (der Cache wird
+    nur aktualisiert, wenn das Dashboard sowieso gerade offen/aktiv ist)."""
+    parts = []
+    if time.time() - _repo_status_cache["ts"] < 120 and _repo_status_cache["behind"]:
+        parts.append(f"{_repo_status_cache['behind']} repo(s) behind")
+    term_count = pty_bridge.active_session_count()
+    if term_count:
+        parts.append(f"{term_count} terminal session(s)")
+    return " · ".join(parts) if parts else "Dashboard active"
+
+
+@app.route("/api/discord/status")
+def api_discord_status():
+    return jsonify(discord_rpc.get_status())
+
+
+# ---------------------------------------------------------------------------
 # Quick-Launch & externes Terminal-Fenster
 # ---------------------------------------------------------------------------
 
@@ -256,6 +322,179 @@ def api_terminal():
 
 
 # ---------------------------------------------------------------------------
+# Remote Servers (DEVHUB Agents auf verlinkten Servern)
+#
+# Der API-Key jedes Servers steht NUR in servers.json auf dieser Maschine
+# und wird niemals an den Browser geschickt -- alle Aufrufe laufen
+# server-seitig (Python -> Python, kein CORS) ueber helpers/remote_agent.py.
+# ---------------------------------------------------------------------------
+
+def load_servers():
+    if not SERVERS_FILE.exists():
+        return []
+    try:
+        with open(SERVERS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+
+def save_servers(servers):
+    with open(SERVERS_FILE, "w", encoding="utf-8") as f:
+        json.dump(servers, f, indent=2, ensure_ascii=False)
+
+
+def get_operator_name():
+    """Der Name, der bei Remote-Aktionen im Audit-Log des Agents landet.
+    Faellt auf den lokalen OS-Benutzernamen zurueck, falls nicht explizit
+    in config.json gesetzt."""
+    cfg = load_config()
+    return cfg.get("operator_name") or system_info.get_username()
+
+
+def find_server(name):
+    for s in load_servers():
+        if s.get("name") == name:
+            return s
+    return None
+
+
+def public_server(s):
+    """Server-Objekt OHNE Token fuers Frontend (Karten/Listen-Ansicht)."""
+    return {"name": s.get("name"), "host": s.get("host"), "port": s.get("port")}
+
+
+@app.route("/api/servers", methods=["GET"])
+def api_list_servers():
+    return jsonify([public_server(s) for s in load_servers()])
+
+
+@app.route("/api/servers", methods=["POST"])
+def api_add_server():
+    data = request.get_json(force=True)
+    name = (data.get("name") or "").strip()
+    host = (data.get("host") or "").strip()
+    port = data.get("port")
+    token = (data.get("token") or "").strip()
+    if not name or not host or not port or not token:
+        return jsonify({"ok": False, "error": "name, host, port und token sind erforderlich"}), 400
+
+    servers = load_servers()
+    if any(s.get("name") == name for s in servers):
+        return jsonify({"ok": False, "error": "Ein Server mit diesem Namen existiert bereits"}), 400
+
+    servers.append({"name": name, "host": host, "port": int(port), "token": token})
+    save_servers(servers)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/servers/<name>", methods=["DELETE"])
+def api_delete_server(name):
+    servers = load_servers()
+    new_servers = [s for s in servers if s.get("name") != name]
+    if len(new_servers) == len(servers):
+        return jsonify({"ok": False, "error": "Server nicht gefunden"}), 404
+    save_servers(new_servers)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/servers/<name>/health")
+def api_server_health(name):
+    server = find_server(name)
+    if not server:
+        return jsonify({"online": False, "error": "unbekannter Server"}), 404
+    return jsonify(remote_agent.check_health(server))
+
+
+@app.route("/api/servers/<name>/status")
+def api_server_status(name):
+    server = find_server(name)
+    if not server:
+        return jsonify({"error": "unbekannter Server"}), 404
+    return jsonify(remote_agent.get_status(server))
+
+
+@app.route("/api/servers/<name>/processes")
+def api_server_processes(name):
+    server = find_server(name)
+    if not server:
+        return jsonify({"error": "unbekannter Server"}), 404
+    return jsonify(remote_agent.get_processes(server))
+
+
+@app.route("/api/servers/<name>/ports")
+def api_server_ports(name):
+    server = find_server(name)
+    if not server:
+        return jsonify({"error": "unbekannter Server"}), 404
+    return jsonify(remote_agent.get_ports(server))
+
+
+@app.route("/api/servers/<name>/docker")
+def api_server_docker(name):
+    server = find_server(name)
+    if not server:
+        return jsonify({"error": "unbekannter Server"}), 404
+    return jsonify(remote_agent.get_docker(server))
+
+
+@app.route("/api/servers/<name>/repos")
+def api_server_repos(name):
+    server = find_server(name)
+    if not server:
+        return jsonify({"error": "unbekannter Server"}), 404
+    return jsonify(remote_agent.get_repos(server))
+
+
+@app.route("/api/servers/<name>/repos/pull", methods=["POST"])
+def api_server_repo_pull(name):
+    server = find_server(name)
+    if not server:
+        return jsonify({"error": "unbekannter Server"}), 404
+    data = request.get_json(force=True) or {}
+    path = data.get("path")
+    if not path:
+        return jsonify({"error": "kein path angegeben"}), 400
+    return jsonify(remote_agent.pull_repo(server, path, get_operator_name()))
+
+
+@app.route("/api/servers/<name>/repos/pull_all", methods=["POST"])
+def api_server_repo_pull_all(name):
+    server = find_server(name)
+    if not server:
+        return jsonify({"error": "unbekannter Server"}), 404
+    return jsonify(remote_agent.pull_all_repos(server, get_operator_name()))
+
+
+@app.route("/api/servers/<name>/notes", methods=["GET"])
+def api_server_notes_get(name):
+    server = find_server(name)
+    if not server:
+        return jsonify({"error": "unbekannter Server"}), 404
+    return jsonify(remote_agent.get_notes(server))
+
+
+@app.route("/api/servers/<name>/notes", methods=["POST"])
+def api_server_notes_post(name):
+    server = find_server(name)
+    if not server:
+        return jsonify({"error": "unbekannter Server"}), 404
+    data = request.get_json(force=True) or {}
+    text = (data.get("text") or "").strip()
+    if not text:
+        return jsonify({"error": "leerer Text"}), 400
+    return jsonify(remote_agent.add_note(server, text, get_operator_name()))
+
+
+@app.route("/api/servers/<name>/logs")
+def api_server_logs(name):
+    server = find_server(name)
+    if not server:
+        return jsonify({"error": "unbekannter Server"}), 404
+    return jsonify(remote_agent.get_logs(server))
+
+
+# ---------------------------------------------------------------------------
 # Eingebettetes Terminal (Socket.IO Namespace /pty)
 # ---------------------------------------------------------------------------
 
@@ -289,9 +528,17 @@ def pty_disconnect():
 
 if __name__ == "__main__":
     print("=" * 60)
-    print(" DEVHUB Cyber Command Center v2")
+    print(" DEVHUB Cyber Command Center v3")
     print(" http://127.0.0.1:5050")
     print("=" * 60)
+
+    rpc_thread = threading.Thread(
+        target=discord_rpc.run_loop,
+        args=(lambda: load_config().get("discord_rpc", {}), get_live_state_text),
+        daemon=True,
+    )
+    rpc_thread.start()
+
     # allow_unsafe_werkzeug: unbedenklich hier, da DEVHUB ausschliesslich an
     # 127.0.0.1 bindet (nur lokaler Single-User-Zugriff, kein oeffentlicher Server).
     socketio.run(app, host="127.0.0.1", port=5050, debug=False, allow_unsafe_werkzeug=True)

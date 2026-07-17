@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DEVHUB // SERVER MONITOR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/panel.css">
+</head>
+<body>
+
+<div class="grid-overlay"></div>
+<div class="vignette"></div>
+
+<!-- Token-Eingabe-Overlay: erscheint nur, wenn noch kein API-Key bekannt ist -->
+<div id="token-gate" class="token-gate hidden">
+  <div class="token-box">
+    <div class="token-title">DEVHUB SERVER MONITOR</div>
+    <div class="token-sub">API-Key eingeben, um Live-Daten zu sehen (aus der Agent-Konsole beim ersten Start, oder aus agent_config.json)</div>
+    <input id="token-input" type="password" placeholder="API-Key" autocomplete="off">
+    <label class="token-remember"><input type="checkbox" id="token-remember" checked> Auf diesem Gerät merken</label>
+    <button id="token-submit" class="btn">VERBINDEN</button>
+    <div id="token-error" class="token-error hidden"></div>
+  </div>
+</div>
+
+<div class="monitor">
+  <header class="monitor-header">
+    <div class="monitor-title">
+      <span class="brackets">[</span> <span id="server-name">DEVHUB</span> <span class="brackets">]</span>
+      <span class="monitor-sub">SERVER MONITOR</span>
+    </div>
+    <div class="monitor-clock" id="monitor-clock">00:00:00</div>
+  </header>
+
+  <div class="monitor-status-strip" id="status-strip">
+    <span class="dot" id="conn-dot"></span> <span id="conn-text">VERBINDE...</span>
+    <span class="sep">|</span>
+    <span id="monitor-hostname">--</span>
+    <span class="sep">|</span>
+    CPU <span id="monitor-cpu">--</span>
+    <span class="sep">|</span>
+    RAM <span id="monitor-ram">--</span>
+    <span class="sep">|</span>
+    UPTIME <span id="monitor-uptime">--</span>
+    <span class="sep">|</span>
+    <span id="monitor-repos">-- repos behind</span>
+  </div>
+
+  <main class="monitor-grid">
+    <!-- NOTIZEN-BOARD (Hauptbereich, wie ein Kuechen-Ticket-Board) -->
+    <section class="board-panel">
+      <div class="board-header">NOTIZEN / CHANGELOG</div>
+      <div id="notes-board" class="notes-board">
+        <div class="board-empty">Warte auf Verbindung...</div>
+      </div>
+    </section>
+
+    <!-- AUDIT-LOG (Ticker, wer was gemacht hat) -->
+    <section class="log-panel">
+      <div class="board-header">AKTIVITÄT</div>
+      <div id="log-board" class="log-board">
+        <div class="board-empty">--</div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="/static/panel.js"></script>
+</body>
+</html>

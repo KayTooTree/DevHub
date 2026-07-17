@@ -95,6 +95,30 @@ async function refreshPing() {
   }
 }
 
+async function refreshDiscordStatus() {
+  const el = document.getElementById("discord-status");
+  try {
+    const res = await fetch(`${API}/api/discord/status`);
+    const data = await res.json();
+    if (!data.available) {
+      el.textContent = "DISCORD RPC: N/A";
+      el.className = "discord-status-off";
+    } else if (!data.enabled) {
+      el.textContent = "DISCORD RPC: OFF";
+      el.className = "discord-status-off";
+    } else if (data.connected) {
+      el.textContent = "DISCORD RPC: ●";
+      el.className = "discord-status-connected";
+    } else {
+      el.textContent = "DISCORD RPC: ...";
+      el.className = "discord-status-waiting";
+    }
+  } catch (e) {
+    el.textContent = "DISCORD RPC: --";
+    el.className = "discord-status-off";
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Git-Repos
 // ---------------------------------------------------------------------------
@@ -361,6 +385,7 @@ function escapeHtml(str) {
   refreshProcesses();
   refreshPorts();
   refreshDocker();
+  refreshDiscordStatus();
   loadNotes();
   loadLauncher();
 
@@ -370,4 +395,5 @@ function escapeHtml(str) {
   setInterval(refreshProcesses, 5000);
   setInterval(refreshPorts, 10000);
   setInterval(refreshDocker, 8000);
+  setInterval(refreshDiscordStatus, 10000);
 })();

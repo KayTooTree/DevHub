@@ -68,6 +68,35 @@ const I18N = {
     th_image: "IMAGE",
     docker_unavailable: "Docker nicht verfügbar",
     no_containers: "Keine laufenden Container",
+    panel_servers: "REMOTE SERVERS",
+    add_server: "SERVER HINZUFÜGEN",
+    loading_servers: "Lade Server...",
+    no_servers: "Noch keine Server verlinkt",
+    server_online: "ONLINE",
+    server_offline: "OFFLINE",
+    open_panel: "PANEL ÖFFNEN",
+    remove_server: "Entfernen",
+    confirm_remove_server: "Diesen Server wirklich entfernen? (Der Agent selbst läuft weiter.)",
+    modal_add_server_title: "Server hinzufügen",
+    field_name: "Name",
+    field_host: "Host / IP",
+    field_port: "Port",
+    field_token: "API-Key",
+    save: "SPEICHERN",
+    cancel: "ABBRECHEN",
+    tab_performance: "LEISTUNG",
+    tab_repos: "REPOS",
+    tab_notes: "NOTIZEN",
+    tab_logs: "LOGS",
+    send_note: "SENDEN",
+    note_placeholder: "Changelog / Notiz an den Server schreiben...",
+    no_notes: "Noch keine Notizen",
+    no_logs: "Noch keine Log-Einträge",
+    server_uptime_label: "UPTIME",
+    server_hostname_label: "HOSTNAME",
+    server_os_label: "OS",
+    all_fields_required: "Alle Felder sind erforderlich",
+    connection_failed: "Verbindung fehlgeschlagen",
   },
   en: {
     subtitle: "// CYBER COMMAND CENTER",
@@ -127,10 +156,41 @@ const I18N = {
     th_image: "IMAGE",
     docker_unavailable: "Docker not available",
     no_containers: "No running containers",
+    panel_servers: "REMOTE SERVERS",
+    add_server: "ADD SERVER",
+    loading_servers: "Loading servers...",
+    no_servers: "No servers linked yet",
+    server_online: "ONLINE",
+    server_offline: "OFFLINE",
+    open_panel: "OPEN PANEL",
+    remove_server: "Remove",
+    confirm_remove_server: "Really remove this server? (The agent itself keeps running.)",
+    modal_add_server_title: "Add Server",
+    field_name: "Name",
+    field_host: "Host / IP",
+    field_port: "Port",
+    field_token: "API Key",
+    save: "SAVE",
+    cancel: "CANCEL",
+    tab_performance: "PERFORMANCE",
+    tab_repos: "REPOS",
+    tab_notes: "NOTES",
+    tab_logs: "LOGS",
+    send_note: "SEND",
+    note_placeholder: "Write a changelog / note to the server...",
+    no_notes: "No notes yet",
+    no_logs: "No log entries yet",
+    server_uptime_label: "UPTIME",
+    server_hostname_label: "HOSTNAME",
+    server_os_label: "OS",
+    all_fields_required: "All fields are required",
+    connection_failed: "Connection failed",
   },
 };
 
 let currentLang = "de";
+let _i18nResolveReady;
+window.i18nReadyPromise = new Promise((resolve) => { _i18nResolveReady = resolve; });
 
 function t(key) {
   return (I18N[currentLang] && I18N[currentLang][key]) || key;
@@ -181,5 +241,9 @@ async function initI18n() {
     btn.addEventListener("click", () => {
       setLanguage(currentLang === "de" ? "en" : "de");
     });
+  }
+  if (_i18nResolveReady) {
+    _i18nResolveReady();
+    _i18nResolveReady = null;
   }
 }

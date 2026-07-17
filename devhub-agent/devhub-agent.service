@@ -1,0 +1,18 @@
+[Unit]
+Description=DEVHUB Agent — Remote-Server-Panel-Backend
+After=network.target
+
+[Service]
+Type=simple
+# Pfad anpassen an den tatsaechlichen Installationsort:
+WorkingDirectory=/opt/devhub-agent
+ExecStart=/usr/bin/python3 /opt/devhub-agent/agent.py
+Restart=on-failure
+RestartSec=5
+# Aus Sicherheitsgruenden NICHT als root laufen lassen -- leg vorher einen
+# eigenen, unprivilegierten Nutzer an (z.B. "devhub") und trag ihn hier ein:
+User=devhub
+Group=devhub
+
+[Install]
+WantedBy=multi-user.target
