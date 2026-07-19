@@ -12,10 +12,18 @@
 
 let currentSettingsTab = "profile";
 let isOnboarding = false;
+let accountPollInterval = null;
+
+function clearAccountPoll() {
+  if (accountPollInterval) {
+    clearInterval(accountPollInterval);
+    accountPollInterval = null;
+  }
+}
 
 function openSettings(onboarding = false) {
   isOnboarding = onboarding;
-  currentSettingsTab = "profile";
+  currentSettingsTab = onboarding ? "account" : "profile";
   showModal(`
     <div class="modal-header">
       <span class="modal-title">${onboarding ? t("welcome_title") : t("settings_title")}</span>
@@ -23,23 +31,28 @@ function openSettings(onboarding = false) {
     </div>
     ${onboarding ? `<div class="settings-welcome-hint">${t("welcome_hint")}</div>` : ""}
     <div class="server-panel-tabs">
+      <button class="server-panel-tab" data-tab="account">${t("tab_account")}</button>
       <button class="server-panel-tab" data-tab="profile">${t("tab_profile")}</button>
       <button class="server-panel-tab" data-tab="repos">${t("tab_repos")}</button>
-      <button class="server-panel-tab" data-tab="discord">${t("tab_discord")}</button>
+      <button class="server-panel-tab" data-tab="discord">${t("tab_discord_rpc")}</button>
       <button class="server-panel-tab" data-tab="feedback">${t("tab_feedback")}</button>
     </div>
     <div class="server-panel-tab-content" id="settings-tab-content"></div>
   `);
   if (!onboarding) {
-    document.getElementById("modal-close-btn").addEventListener("click", hideModal);
+    document.getElementById("modal-close-btn").addEventListener("click", () => {
+      clearAccountPoll();
+      hideModal();
+    });
   }
   modalBox.querySelectorAll(".server-panel-tab").forEach((btn) => {
     btn.addEventListener("click", () => switchSettingsTab(btn.dataset.tab));
   });
-  switchSettingsTab("profile");
+  switchSettingsTab(currentSettingsTab);
 }
 
 function switchSettingsTab(tab) {
+  clearAccountPoll();
   currentSettingsTab = tab;
   modalBox.querySelectorAll(".server-panel-tab").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.tab === tab);
@@ -47,10 +60,92 @@ function switchSettingsTab(tab) {
   const content = document.getElementById("settings-tab-content");
   content.innerHTML = `<span class="loading">...</span>`;
 
-  if (tab === "profile") loadProfileTab(content);
+  if (tab === "account") loadAccountTab(content);
+  else if (tab === "profile") loadProfileTab(content);
   else if (tab === "repos") loadReposConfigTab(content);
   else if (tab === "discord") loadDiscordTab(content);
   else if (tab === "feedback") loadFeedbackTab(content);
+}
+
+// ---- Tab: Discord-Konto ----
+
+async function loadAccountTab(content) {
+  let cfg;
+  try {
+    cfg = await (await fetch(`${API}/api/config`)).json();
+  } catch (e) {
+    content.innerHTML = `<div class="form-error">${t("settings_load_error")}</div>`;
+    return;
+  }
+
+  const identity = cfg.discord_identity;
+
+  if (identity) {
+    const roles = (identity.roles || []).map((r) => `<span class="gh-badge">${escapeHtml(r)}</span>`).join(" ");
+    content.innerHTML = `
+      <div class="account-card">
+        <img class="account-avatar" src="${escapeHtml(identity.avatar_url)}" alt="Avatar">
+        <div class="account-info">
+          <div class="account-name">${escapeHtml(identity.display_name)}</div>
+          <div class="account-username">${escapeHtml(identity.username)}</div>
+          <div class="account-roles">${roles}</div>
+        </div>
+      </div>
+      <p class="settings-hint">${t("account_linked_hint")}</p>
+      <div class="form-actions">
+        <button class="btn" id="account-unlink-btn">${t("unlink_account")}</button>
+        ${isOnboarding ? `<button class="btn" id="account-continue-btn">${t("finish_setup")}</button>` : ""}
+      </div>
+    `;
+    document.getElementById("account-unlink-btn").addEventListener("click", async () => {
+      await fetch(`${API}/api/discord/unlink`, { method: "POST" });
+      loadAccountTab(content);
+    });
+    if (isOnboarding) {
+      document.getElementById("account-continue-btn").addEventListener("click", () => switchSettingsTab("profile"));
+    }
+    return;
+  }
+
+  content.innerHTML = `
+    <p class="settings-hint">${t("account_hint")}</p>
+    <div class="form-actions">
+      <button class="btn" id="account-link-start-btn">${t("link_discord")}</button>
+      ${isOnboarding ? `<button class="btn" id="account-skip-btn">${t("skip_for_now")}</button>` : ""}
+    </div>
+    <div id="account-link-progress"></div>
+  `;
+
+  if (isOnboarding) {
+    document.getElementById("account-skip-btn").addEventListener("click", () => switchSettingsTab("profile"));
+  }
+
+  document.getElementById("account-link-start-btn").addEventListener("click", async () => {
+    const progress = document.getElementById("account-link-progress");
+    progress.innerHTML = `<p class="settings-hint">${t("generating_code")}</p>`;
+    const res = await fetch(`${API}/api/discord/link/start`, { method: "POST" });
+    const data = await res.json();
+    const code = data.code;
+
+    progress.innerHTML = `
+      <div class="verify-code-box">${escapeHtml(code)}</div>
+      <p class="settings-hint">${t("verify_instructions")}</p>
+      <p class="settings-hint verify-waiting">${t("waiting_for_verify")}</p>
+    `;
+
+    clearAccountPoll();
+    accountPollInterval = setInterval(async () => {
+      const statusRes = await fetch(`${API}/api/discord/link/status`);
+      const status = await statusRes.json();
+      if (status.linked) {
+        clearAccountPoll();
+        loadAccountTab(content);
+      } else if (!status.waiting && status.error) {
+        clearAccountPoll();
+        progress.innerHTML = `<div class="form-error">${escapeHtml(status.error)}</div>`;
+      }
+    }, 2000);
+  });
 }
 
 // ---- Tab: Profil ----

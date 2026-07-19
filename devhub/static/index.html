@@ -46,7 +46,7 @@
   <div class="status-strip">
     <span class="dot online"></span> <span data-i18n="link_active">VERBINDUNG AKTIV</span>
     <span class="sep">|</span>
-    <span data-i18n="operator">OPERATOR</span>: <span id="operator-name" class="accent">--</span>
+    <span data-i18n="operator">OPERATOR</span>: <img id="operator-avatar" class="operator-avatar hidden" src="" alt=""><span id="operator-name" class="accent">--</span>
     <span class="sep">|</span>
     <span data-i18n="node">KNOTEN</span>: <span id="hostname-val">--</span>
     <span class="sep">|</span>
@@ -188,6 +188,21 @@
       </div>
     </section>
 
+    <!-- ACTIVE CONNECTIONS PANEL -->
+    <section class="panel">
+      <div class="panel-header"><span data-i18n="panel_connections">AKTIVE VERBINDUNGEN</span></div>
+      <div class="panel-body">
+        <table class="mini-table">
+          <thead><tr>
+            <th data-i18n="th_process">PROZESS</th>
+            <th data-i18n="th_local">LOKAL</th>
+            <th data-i18n="th_remote">REMOTE</th>
+          </tr></thead>
+          <tbody id="connections-tbody"><tr><td colspan="3" class="loading">...</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
     <!-- DOCKER PANEL -->
     <section class="panel">
       <div class="panel-header"><span data-i18n="panel_docker">DOCKER CONTAINER</span></div>
@@ -212,6 +227,34 @@
       <div class="panel-body">
         <textarea id="notes-area" class="notes-area" data-i18n-placeholder="notes_placeholder"
                   placeholder="Notizen hier eintippen — speichert automatisch..."></textarea>
+      </div>
+    </section>
+
+    <!-- DEV TOOLS PANEL -->
+    <section class="panel panel-wide">
+      <div class="panel-header"><span data-i18n="panel_devtools">DEV TOOLS</span></div>
+      <div class="panel-body no-pad">
+        <div class="server-panel-tabs" id="devtools-tabs">
+          <button class="server-panel-tab" data-tool="base64">Base64</button>
+          <button class="server-panel-tab" data-tool="url">URL</button>
+          <button class="server-panel-tab" data-tool="json">JSON</button>
+          <button class="server-panel-tab" data-tool="hash">Hash</button>
+          <button class="server-panel-tab" data-tool="uuid">UUID</button>
+          <button class="server-panel-tab" data-tool="timestamp">Timestamp</button>
+          <button class="server-panel-tab" data-tool="color">Color</button>
+        </div>
+        <div class="server-panel-tab-content" id="devtools-content"></div>
+      </div>
+    </section>
+
+    <!-- CHEAT SHEET PANEL -->
+    <section class="panel panel-wide">
+      <div class="panel-header"><span data-i18n="panel_cheatsheet">CHEAT SHEET</span></div>
+      <div class="panel-body">
+        <input id="cheatsheet-search" class="cheatsheet-search" type="text" data-i18n-placeholder="cheatsheet_search_placeholder" placeholder="Suchen (z.B. 'git', 'docker', 'rebase')...">
+        <div id="cheatsheet-content" class="cheatsheet-content">
+          <span class="loading">...</span>
+        </div>
       </div>
     </section>
 
@@ -241,5 +284,7 @@
 <script src="/static/app.js"></script>
 <script src="/static/servers.js"></script>
 <script src="/static/settings.js"></script>
+<script src="/static/devtools.js"></script>
+<script src="/static/cheatsheet.js"></script>
 </body>
 </html>

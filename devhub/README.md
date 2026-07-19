@@ -38,6 +38,17 @@ auf deinem PC.
   persönliche Identität, nur eine zufällige Geräte-ID. Zeigt im Discord-
   Profil des Bots "Watching X Users using DevHub". Feedback lässt sich
   direkt aus dem Zahnrad-Menü senden, landet in einem Discord-Kanal.
+- **Discord-Konto-Verknüpfung**: über den [DevHub Bot](../devhub-bot/README.md)
+  per `/verify CODE` — übernimmt automatisch Discord-Anzeigename, Avatar
+  und Rollen als DevHub-Identität, statt sie manuell einzutragen.
+- **Aktive Netzwerkverbindungen**: zusätzlich zu offenen (lauschenden)
+  Ports zeigt ein eigenes Panel, welche Verbindungen gerade tatsächlich
+  aktiv genutzt werden (ESTABLISHED), inkl. Remote-Adresse und Prozess.
+- **Dev-Utility-Belt**: Base64, URL-Encoding, JSON-Formatter,
+  Hash-Generator (SHA-1/256/512), UUID-Generator, Timestamp-Konverter,
+  Farbkonverter — alles direkt im Dashboard, komplett lokal im Browser.
+- **Cheat Sheet**: durchsuchbare Referenz gängiger Git/Docker/npm/Linux/
+  PowerShell-Befehle mit Kopier-Button. Erweiterbar über `cheatsheet.json`.
 
 ## Alle Features im Überblick
 
@@ -231,6 +242,41 @@ siehe Bot-README) — damit ein Server-Umzug nicht jeden Client kaputt macht.
 
 ---
 
+## 11. Discord-Konto verknüpfen (optional)
+
+Erster Reiter im Zahnrad-Menü ("DISCORD-KONTO"), auch prominent beim
+Erstlauf-Wizard. Ablauf:
+
+1. Button "MIT DISCORD VERKNÜPFEN" klicken → DevHub zeigt einen 8-stelligen
+   Code
+2. In einem Discord-Server mit dem [DevHub Bot](../devhub-bot/README.md):
+   `/verify CODE`
+3. DevHub erkennt die Bestätigung automatisch (Polling alle 2s) und
+   übernimmt Anzeigename, Avatar und Rollen
+
+Danach wird der Discord-Anzeigename automatisch überall dort verwendet,
+wo vorher der manuell gesetzte Anzeigename stand (z.B. im Audit-Log
+verlinkter Remote-Server). Trennen jederzeit über denselben Reiter
+möglich.
+
+**Sicherheitsmodell**: Codes sind zufällig, 5 Minuten gültig und nur
+einmal einlösbar (Erst-Einlösung gewinnt) — ausreichend für ein
+Community-/Dev-Tool, kein Banking-Grade-Auth.
+
+## 12. Aktive Verbindungen & Dev Tools
+
+- **Aktive Verbindungen**: zeigt neben den offenen (lauschenden) Ports
+  auch, welche Verbindungen gerade tatsächlich Daten austauschen —
+  praktisch um zu sehen, was ein Prozess gerade wirklich anspricht (DB,
+  API, entferntes Repo, ...).
+- **Dev Tools**: Base64/URL-Encoding, JSON-Formatter, Hash-Generator,
+  UUID-Generator, Timestamp-Konverter, Farbkonverter — alle als eigene
+  Reiter im "DEV TOOLS"-Panel, komplett im Browser, kein Datenversand.
+- **Cheat Sheet**: durchsuchbare Befehlsreferenz. Eigene Einträge einfach
+  in `cheatsheet.json` ergänzen (Format: `{"category", "command", "description"}`).
+
+---
+
 ## Architektur
 
 ```
@@ -239,15 +285,17 @@ devhub/
   config.json            Sprache, Shell-Wahl, Ping-Host, Operator-Name, Quick-Launch
   repos.json              überwachte Git-Repos (+ optionale GitHub-Slugs)
   servers.json             verlinkte Remote-Server (Host/Port/API-Key)
+  cheatsheet.json          Befehlsreferenz (erweiterbar)
   notes.txt                (wird automatisch erstellt) Schnellnotizen
   helpers/
-    system_info.py         CPU/RAM/Disk, IP/Geo, Username, Battery, Ping, Top-Prozesse, Ports
+    system_info.py         CPU/RAM/Disk, IP/Geo, Username, Battery, Ping, Top-Prozesse, Ports, Verbindungen
     git_tools.py            Git-Status, Pull, "Öffne in Tool"
     docker_tools.py         Docker-Container-Status
     github_tools.py         Öffentliche GitHub-Repo-Statistiken (mit Cache)
     remote_agent.py          Kommunikation mit verlinkten DEVHUB Agents
     discord_rpc.py           Discord Rich Presence (optional)
     telemetry.py             Heartbeat/Feedback an den DevHub Bot (optional)
+    discord_link.py          Discord-Account-Verknüpfung (optional)
     pty_bridge.py            Terminal-Sessions (PTY <-> WebSocket)
   static/
     index.html               HUD-Layout inkl. Boot-Screen, Terminal-Tabs, Server-Modal
@@ -258,6 +306,8 @@ devhub/
     app.js                       Restliche Dashboard-Logik
     servers.js                   Remote-Server-Karten + 4-Reiter-Panel
     settings.js                   Setup-Wizard + Einstellungen-Modal
+    devtools.js                    Dev-Utility-Belt
+    cheatsheet.js                   Cheat-Sheet-Suche
 ```
 
 **Warum ein Backend?** Eine reine HTML-Seite darf aus Sicherheitsgründen

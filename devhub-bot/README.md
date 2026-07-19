@@ -14,6 +14,11 @@ Integrationen):
 - `/kick`, `/ban`, `/unban`
 - `/timeout`, `/untimeout`
 
+**Account-Verknüpfung** — `/verify CODE`: verknüpft einen DevHub-Client
+mit der Discord-Identität des Nutzers (Anzeigename, Avatar, Rollen). Der
+Code wird vorher im DevHub Client generiert und angezeigt. Codes sind
+zufällig, 5 Minuten gültig und nur einmal einlösbar.
+
 **Automatisches Server-Setup** — sobald der Bot einem (auch leeren) Server
 beitritt, legt er automatisch an:
 - Kategorie **DEVHUB STUDIO** mit `#welcome`, `#support`, `#mod-logs`
@@ -150,6 +155,7 @@ Alle Endpunkte optional per `X-DevHub-Secret`-Header geschützt (siehe
 | GET | `/health` | Health-Check + aktuelle aktive Instanzen, kein Secret nötig |
 | POST | `/heartbeat` | `{"instance_id": "..."}` — Lebenszeichen |
 | POST | `/feedback` | `{"instance_id": "...", "text": "..."}` — postet in `feedback_channel_id` |
+| GET | `/verify/status?code=X` | Prüft, ob ein DevHub-Verify-Code eingelöst wurde |
 
 ---
 

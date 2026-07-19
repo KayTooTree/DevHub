@@ -53,7 +53,14 @@ async function refreshStatus() {
       document.getElementById("uptime").textContent = fmtUptime(sys.boot_time);
     }
 
-    document.getElementById("operator-name").textContent = data.username || "OPERATOR";
+    document.getElementById("operator-name").textContent = data.operator_name || data.username || "OPERATOR";
+    const avatarEl = document.getElementById("operator-avatar");
+    if (data.discord_avatar) {
+      avatarEl.src = data.discord_avatar;
+      avatarEl.classList.remove("hidden");
+    } else {
+      avatarEl.classList.add("hidden");
+    }
     document.getElementById("hostname-val").textContent = data.hostname || "--";
 
     const battWrap = document.getElementById("battery-wrap");
@@ -256,6 +263,23 @@ async function refreshPorts() {
   }
 }
 
+async function refreshConnections() {
+  try {
+    const res = await fetch(`${API}/api/connections`);
+    const conns = await res.json();
+    const tbody = document.getElementById("connections-tbody");
+    if (!conns.length) {
+      tbody.innerHTML = `<tr><td colspan="3" class="loading">${t("no_connections")}</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = conns
+      .map((c) => `<tr><td>${escapeHtml(c.process)}</td><td>${escapeHtml(c.local)}</td><td>${escapeHtml(c.remote)}</td></tr>`)
+      .join("");
+  } catch (e) {
+    /* still */
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Docker-Container
 // ---------------------------------------------------------------------------
@@ -384,6 +408,7 @@ function escapeHtml(str) {
   refreshRepos();
   refreshProcesses();
   refreshPorts();
+  refreshConnections();
   refreshDocker();
   refreshDiscordStatus();
   loadNotes();
@@ -394,6 +419,7 @@ function escapeHtml(str) {
   setInterval(refreshRepos, 15000);
   setInterval(refreshProcesses, 5000);
   setInterval(refreshPorts, 10000);
+  setInterval(refreshConnections, 10000);
   setInterval(refreshDocker, 8000);
   setInterval(refreshDiscordStatus, 10000);
 })();

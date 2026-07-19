@@ -12,6 +12,8 @@ Lokaler Server auf Basis von Flask + Flask-SocketIO. Bindet an 127.0.0.1
     POST /api/repos/open      -> Repo in VS Code / Explorer oeffnen
     GET  /api/processes       -> Top-Prozesse nach CPU
     GET  /api/ports           -> lokal lauschende Ports
+    GET  /api/connections     -> aktiv genutzte (ESTABLISHED) Verbindungen
+    GET  /api/cheatsheet      -> kuratierte Befehlsreferenz (cheatsheet.json)
     GET  /api/notes           -> gespeicherte Schnellnotizen
     POST /api/notes           -> Schnellnotizen speichern
     GET  /api/config          -> aktuelle Konfiguration (u.a. Sprache)
@@ -21,6 +23,11 @@ Lokaler Server auf Basis von Flask + Flask-SocketIO. Bindet an 127.0.0.1
     GET  /api/discord/status  -> Verbindungsstatus der Discord Rich Presence
     GET  /api/telemetry/status    -> Verbindungsstatus des Heartbeats
     POST /api/telemetry/feedback  -> Feedback an den DevHub Bot senden
+
+    POST /api/discord/link/start   -> generiert Verify-Code, startet Hintergrund-Polling
+    GET  /api/discord/link/status  -> Status des laufenden/abgeschlossenen Verknuepfungsversuchs
+    POST /api/discord/link/cancel  -> bricht laufende Verknuepfung ab
+    POST /api/discord/unlink       -> trennt die verknuepfte Discord-Identitaet
 
     GET    /api/repos/config          -> rohe Repo-Konfiguration (kein git fetch, fuer Onboarding/Settings)
     POST   /api/repos/config          -> Repo hinzufuegen {name, path, github?}
@@ -58,7 +65,7 @@ from flask import Flask, jsonify, request, send_from_directory
 from flask_socketio import SocketIO
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import system_info, git_tools, pty_bridge, docker_tools, github_tools, remote_agent, discord_rpc, telemetry  # noqa: E402
+from helpers import system_info, git_tools, pty_bridge, docker_tools, github_tools, remote_agent, discord_rpc, telemetry, discord_link  # noqa: E402
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
@@ -66,6 +73,7 @@ REPOS_FILE = BASE_DIR / "repos.json"
 CONFIG_FILE = BASE_DIR / "config.json"
 NOTES_FILE = BASE_DIR / "notes.txt"
 SERVERS_FILE = BASE_DIR / "servers.json"
+CHEATSHEET_FILE = BASE_DIR / "cheatsheet.json"
 
 IS_WINDOWS = sys.platform == "win32"
 
@@ -95,6 +103,7 @@ DEFAULT_CONFIG = {
         "server_addr_url": "",
         "secret": "",
     },
+    "discord_identity": None,
 }
 
 app = Flask(__name__, static_folder=None)
@@ -147,6 +156,8 @@ def static_files(filename):
 
 @app.route("/api/status")
 def api_status():
+    cfg = load_config()
+    identity = cfg.get("discord_identity")
     return jsonify({
         "server_time": time.time(),
         "local_ip": system_info.get_local_ip(),
@@ -155,6 +166,8 @@ def api_status():
         "username": system_info.get_username(),
         "hostname": system_info.get_hostname(),
         "battery": system_info.get_battery(),
+        "operator_name": get_operator_name(),
+        "discord_avatar": identity.get("avatar_url") if identity else None,
     })
 
 
@@ -173,6 +186,24 @@ def api_processes():
 @app.route("/api/ports")
 def api_ports():
     return jsonify(system_info.listening_ports())
+
+
+@app.route("/api/connections")
+def api_connections():
+    return jsonify(system_info.active_connections())
+
+
+@app.route("/api/cheatsheet")
+def api_cheatsheet():
+    """Liest cheatsheet.json -- Nutzer koennen die Datei direkt erweitern,
+    kein Editor-UI noetig fuer dieses Feature."""
+    if not CHEATSHEET_FILE.exists():
+        return jsonify([])
+    try:
+        with open(CHEATSHEET_FILE, "r", encoding="utf-8") as f:
+            return jsonify(json.load(f))
+    except Exception:
+        return jsonify([])
 
 
 @app.route("/api/docker")
@@ -358,6 +389,63 @@ def api_telemetry_feedback():
 
 
 # ---------------------------------------------------------------------------
+# Discord-Account-Verknuepfung
+# ---------------------------------------------------------------------------
+
+_link_state = {"code": None, "waiting": False, "linked": False, "identity": None, "error": None}
+_link_lock = threading.Lock()
+_link_cancel_flag = {"cancel": False}
+
+
+def _run_link_poll(code):
+    cfg = load_config()
+    identity, err = discord_link.poll_claim(cfg, code, stop_check=lambda: _link_cancel_flag["cancel"])
+    with _link_lock:
+        if _link_cancel_flag["cancel"]:
+            _link_state.update(waiting=False)
+            return
+        if identity:
+            fresh_cfg = load_config()
+            saved = discord_link.save_identity(fresh_cfg, save_config, identity)
+            _link_state.update(waiting=False, linked=True, identity=saved, error=None)
+        else:
+            _link_state.update(waiting=False, linked=False, error=err)
+
+
+@app.route("/api/discord/link/start", methods=["POST"])
+def api_discord_link_start():
+    code = discord_link.generate_code()
+    with _link_lock:
+        _link_cancel_flag["cancel"] = False
+        _link_state.update(code=code, waiting=True, linked=False, identity=None, error=None)
+    threading.Thread(target=_run_link_poll, args=(code,), daemon=True).start()
+    return jsonify({"code": code})
+
+
+@app.route("/api/discord/link/status")
+def api_discord_link_status():
+    with _link_lock:
+        return jsonify(dict(_link_state))
+
+
+@app.route("/api/discord/link/cancel", methods=["POST"])
+def api_discord_link_cancel():
+    with _link_lock:
+        _link_cancel_flag["cancel"] = True
+        _link_state.update(waiting=False)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/discord/unlink", methods=["POST"])
+def api_discord_unlink():
+    cfg = load_config()
+    discord_link.clear_identity(cfg, save_config)
+    with _link_lock:
+        _link_state.update(code=None, waiting=False, linked=False, identity=None, error=None)
+    return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------------------
 # Quick-Launch & externes Terminal-Fenster
 # ---------------------------------------------------------------------------
 
@@ -419,9 +507,12 @@ def save_servers(servers):
 
 def get_operator_name():
     """Der Name, der bei Remote-Aktionen im Audit-Log des Agents landet.
-    Faellt auf den lokalen OS-Benutzernamen zurueck, falls nicht explizit
-    in config.json gesetzt."""
+    Bevorzugt den verknuepften Discord-Anzeigenamen, faellt sonst auf den
+    manuell gesetzten Namen bzw. den lokalen OS-Benutzernamen zurueck."""
     cfg = load_config()
+    identity = cfg.get("discord_identity")
+    if identity and identity.get("display_name"):
+        return identity["display_name"]
     return cfg.get("operator_name") or system_info.get_username()
 
 

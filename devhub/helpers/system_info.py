@@ -207,6 +207,37 @@ def listening_ports():
     return results
 
 
+def active_connections(limit=60):
+    """Aktiv genutzte (ESTABLISHED) Verbindungen -- im Unterschied zu
+    listening_ports() zeigt das, WOHIN gerade tatsaechlich Daten fliessen
+    (z.B. welche Prozesse gerade eine API, DB oder ein Repo ansprechen)."""
+    if psutil is None:
+        return []
+    results = []
+    try:
+        conns = psutil.net_connections(kind="inet")
+    except Exception:
+        return results
+
+    for c in conns:
+        if c.status == psutil.CONN_ESTABLISHED and c.laddr and c.raddr:
+            pname = "?"
+            if c.pid:
+                try:
+                    pname = psutil.Process(c.pid).name()
+                except Exception:
+                    pass
+            results.append({
+                "pid": c.pid,
+                "process": pname,
+                "local": f"{c.laddr.ip}:{c.laddr.port}",
+                "remote": f"{c.raddr.ip}:{c.raddr.port}",
+            })
+
+    results.sort(key=lambda x: x["process"])
+    return results[:limit]
+
+
 def uptime_seconds(boot_time):
     if not boot_time:
         return None

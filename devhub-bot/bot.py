@@ -57,6 +57,7 @@ INITIAL_EXTENSIONS = [
     "cogs.logging_cog",
     "cogs.setup_cog",
     "cogs.tickets",
+    "cogs.verify",
 ]
 
 

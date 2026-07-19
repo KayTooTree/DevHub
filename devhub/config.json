@@ -1,10 +1,10 @@
 {
-  "language": "en",
+  "language": "de",
   "shell_windows": "powershell.exe",
   "shell_unix": "bash",
   "ping_host": "8.8.8.8",
   "operator_name": "Kay",
-  "onboarding_complete": true,
+  "onboarding_complete": false,
   "quick_launch": [
     {
       "label": "VS Code",
@@ -34,8 +34,9 @@
   },
   "telemetry": {
     "enabled": true,
-    "instance_id": "",
+    "instance_id": "c4a23f1d8faa4acf982bb22c7a280266",
     "server_addr_url": "",
-    "secret": ""
-  }
+    "secret": "orymm478vs6ji8h6OZ00yhrgpVlXOjczJIu0x3eC5GY"
+  },
+  "discord_identity": null
 }

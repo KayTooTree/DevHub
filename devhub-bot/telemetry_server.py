@@ -18,6 +18,7 @@ import time
 from aiohttp import web
 
 import discord
+import verify_store
 
 HEARTBEAT_TIMEOUT_SECONDS = 30
 CLEANUP_INTERVAL_SECONDS = 10
@@ -103,6 +104,24 @@ class TelemetryServer:
     async def handle_health(self, request):
         return web.json_response({"ok": True, "active_users": self.active_count()})
 
+    async def handle_verify_status(self, request):
+        if not self._check_secret(request):
+            return web.json_response({"error": "unauthorized"}, status=401)
+        code = request.query.get("code", "").strip().upper()
+        if not code:
+            return web.json_response({"error": "code fehlt"}, status=400)
+        entry = verify_store.get_claim(code)
+        if not entry or not entry.get("claimed"):
+            return web.json_response({"claimed": False})
+        return web.json_response({
+            "claimed": True,
+            "discord_id": entry["discord_id"],
+            "username": entry["username"],
+            "display_name": entry["display_name"],
+            "avatar_url": entry["avatar_url"],
+            "roles": entry["roles"],
+        })
+
     async def _cleanup_loop(self):
         while True:
             await asyncio.sleep(CLEANUP_INTERVAL_SECONDS)
@@ -119,6 +138,7 @@ class TelemetryServer:
         app.router.add_post("/heartbeat", self.handle_heartbeat)
         app.router.add_post("/feedback", self.handle_feedback)
         app.router.add_get("/health", self.handle_health)
+        app.router.add_get("/verify/status", self.handle_verify_status)
 
         self._runner = web.AppRunner(app)
         await self._runner.setup()
