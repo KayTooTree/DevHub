@@ -1,0 +1,14 @@
+[Unit]
+Description=DEVHUB Discord Bot + Telemetrie-Server
+After=network.target
+
+[Service]
+Type=simple
+User=devhub
+WorkingDirectory=/opt/devhub-bot
+ExecStart=/usr/bin/python3 /opt/devhub-bot/bot.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

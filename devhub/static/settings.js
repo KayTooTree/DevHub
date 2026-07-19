@@ -26,6 +26,7 @@ function openSettings(onboarding = false) {
       <button class="server-panel-tab" data-tab="profile">${t("tab_profile")}</button>
       <button class="server-panel-tab" data-tab="repos">${t("tab_repos")}</button>
       <button class="server-panel-tab" data-tab="discord">${t("tab_discord")}</button>
+      <button class="server-panel-tab" data-tab="feedback">${t("tab_feedback")}</button>
     </div>
     <div class="server-panel-tab-content" id="settings-tab-content"></div>
   `);
@@ -49,6 +50,7 @@ function switchSettingsTab(tab) {
   if (tab === "profile") loadProfileTab(content);
   else if (tab === "repos") loadReposConfigTab(content);
   else if (tab === "discord") loadDiscordTab(content);
+  else if (tab === "feedback") loadFeedbackTab(content);
 }
 
 // ---- Tab: Profil ----
@@ -274,6 +276,73 @@ async function loadDiscordTab(content) {
       body: JSON.stringify({ discord_rpc: updated }),
     });
     switchSettingsTab("discord");
+  });
+}
+
+// ---- Tab: Feedback ----
+
+async function loadFeedbackTab(content) {
+  let cfg;
+  try {
+    cfg = await (await fetch(`${API}/api/config`)).json();
+  } catch (e) {
+    cfg = { telemetry: {} };
+  }
+  const telemetryEnabled = cfg.telemetry ? cfg.telemetry.enabled : true;
+
+  content.innerHTML = `
+    <label class="toggle-row">
+      <span class="toggle-label-text">${t("field_telemetry_enabled")}</span>
+      <span class="toggle-switch">
+        <input type="checkbox" id="telemetry-enabled" ${telemetryEnabled ? "checked" : ""}>
+        <span class="toggle-slider"></span>
+      </span>
+    </label>
+    <p class="settings-hint">${t("telemetry_hint")}</p>
+    <div class="settings-divider"></div>
+    <p class="settings-hint">${t("feedback_hint")}</p>
+    <div class="form-row">
+      <label>${t("field_feedback_text")}</label>
+      <textarea id="feedback-text" class="notes-area" style="min-height:100px" placeholder="${t("field_feedback_placeholder")}"></textarea>
+    </div>
+    <div id="feedback-result" class="form-error hidden"></div>
+    <div class="form-actions">
+      <button class="btn" id="settings-send-feedback-btn">${t("send_feedback")}</button>
+    </div>
+  `;
+
+  document.getElementById("telemetry-enabled").addEventListener("change", async (e) => {
+    const updated = { ...(cfg.telemetry || {}), enabled: e.target.checked };
+    await fetch(`${API}/api/config`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ telemetry: updated }),
+    });
+  });
+
+  document.getElementById("settings-send-feedback-btn").addEventListener("click", async () => {
+    const text = document.getElementById("feedback-text").value.trim();
+    const resultEl = document.getElementById("feedback-result");
+    if (!text) {
+      resultEl.textContent = t("feedback_empty");
+      resultEl.classList.remove("hidden");
+      return;
+    }
+    const res = await fetch(`${API}/api/telemetry/feedback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    const data = await res.json();
+    resultEl.classList.remove("hidden");
+    if (data.ok) {
+      resultEl.className = "settings-hint";
+      resultEl.textContent = t("feedback_sent");
+      document.getElementById("feedback-text").value = "";
+    } else {
+      resultEl.className = "form-error";
+      resultEl.textContent = data.error || t("feedback_failed");
+    }
   });
 }
 

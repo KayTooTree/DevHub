@@ -1,9 +1,10 @@
 {
-  "language": "de",
+  "language": "en",
   "shell_windows": "powershell.exe",
   "shell_unix": "bash",
   "ping_host": "8.8.8.8",
   "operator_name": "Kay",
+  "onboarding_complete": true,
   "quick_launch": [
     {
       "label": "VS Code",
@@ -23,15 +24,18 @@
     }
   ],
   "discord_rpc": {
-    "button_label": "View DevHub",
-    "button_url": "https://github.com/DEIN_USER/devhub",
-    "client_id": "1155041073945645096",
-    "details": "Thinking of a new project",
     "enabled": true,
-    "large_image_key": "bild_2026-07-15_063834655",
-    "large_image_text": "test2",
-    "show_live_status": false,
-    "state": "test"
+    "client_id": "",
+    "show_live_status": true,
+    "details": "Powered by DevHub",
+    "state": "",
+    "large_image_key": "",
+    "large_image_text": ""
   },
-  "onboarding_complete": true
+  "telemetry": {
+    "enabled": true,
+    "instance_id": "",
+    "server_addr_url": "",
+    "secret": ""
+  }
 }

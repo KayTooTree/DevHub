@@ -1,0 +1,6 @@
+{
+  "bot_token": "TRAG_DEINEN_BOT_TOKEN_HIER_EIN",
+  "telemetry_port": 8090,
+  "shared_secret": "AENDERE_MICH_ZU_EINEM_ZUFAELLIGEN_STRING",
+  "feedback_channel_id": ""
+}

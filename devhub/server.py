@@ -19,6 +19,12 @@ Lokaler Server auf Basis von Flask + Flask-SocketIO. Bindet an 127.0.0.1
     POST /api/launch          -> Quick-Launch-Befehl ausfuehren
     POST /api/terminal        -> oeffnet zusaetzlich ein eigenstaendiges Shell-Fenster
     GET  /api/discord/status  -> Verbindungsstatus der Discord Rich Presence
+    GET  /api/telemetry/status    -> Verbindungsstatus des Heartbeats
+    POST /api/telemetry/feedback  -> Feedback an den DevHub Bot senden
+
+    GET    /api/repos/config          -> rohe Repo-Konfiguration (kein git fetch, fuer Onboarding/Settings)
+    POST   /api/repos/config          -> Repo hinzufuegen {name, path, github?}
+    DELETE /api/repos/config/<name>   -> Repo entfernen
 
     GET  /api/servers                       -> Liste verlinkter Remote-Server (ohne Token)
     POST /api/servers                       -> Server hinzufuegen {name, host, port, token}
@@ -52,7 +58,7 @@ from flask import Flask, jsonify, request, send_from_directory
 from flask_socketio import SocketIO
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from helpers import system_info, git_tools, pty_bridge, docker_tools, github_tools, remote_agent, discord_rpc  # noqa: E402
+from helpers import system_info, git_tools, pty_bridge, docker_tools, github_tools, remote_agent, discord_rpc, telemetry  # noqa: E402
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
@@ -69,6 +75,7 @@ DEFAULT_CONFIG = {
     "shell_unix": "bash",
     "ping_host": "8.8.8.8",
     "operator_name": "",
+    "onboarding_complete": False,
     "quick_launch": [
         {"label": "VS Code", "command": "code ."},
         {"label": "Explorer", "command": "explorer.exe ." if IS_WINDOWS else "xdg-open ."},
@@ -79,10 +86,14 @@ DEFAULT_CONFIG = {
         "show_live_status": True,
         "details": "Powered by DevHub",
         "state": "",
-        "button_label": "View DevHub",
-        "button_url": "https://github.com/DEIN_USER/devhub",
         "large_image_key": "",
         "large_image_text": "",
+    },
+    "telemetry": {
+        "enabled": True,
+        "instance_id": "",
+        "server_addr_url": "",
+        "secret": "",
     },
 }
 
@@ -104,6 +115,7 @@ def load_config():
             # einem Update) sollen aus den Defaults aufgefuellt werden, statt
             # den ganzen Block zu verlieren.
             merged["discord_rpc"] = {**DEFAULT_CONFIG["discord_rpc"], **cfg.get("discord_rpc", {})}
+            merged["telemetry"] = {**DEFAULT_CONFIG["telemetry"], **cfg.get("telemetry", {})}
             return merged
         except Exception:
             return dict(DEFAULT_CONFIG)
@@ -173,6 +185,44 @@ def api_docker():
 # ---------------------------------------------------------------------------
 
 _repo_status_cache = {"ts": 0, "behind": 0}
+
+
+@app.route("/api/repos/config", methods=["GET"])
+def api_repos_config_list():
+    """Rohe Repo-Konfiguration (kein git fetch, keine Wartezeit) --
+    fuer Onboarding/Settings, wo nur Name/Pfad verwaltet werden."""
+    return jsonify(git_tools.load_repos(REPOS_FILE))
+
+
+@app.route("/api/repos/config", methods=["POST"])
+def api_repos_config_add():
+    data = request.get_json(force=True)
+    name = (data.get("name") or "").strip()
+    path = (data.get("path") or "").strip()
+    github = (data.get("github") or "").strip()
+    if not name or not path:
+        return jsonify({"ok": False, "error": "name und path sind erforderlich"}), 400
+
+    repos = git_tools.load_repos(REPOS_FILE)
+    if any(r.get("name") == name for r in repos):
+        return jsonify({"ok": False, "error": "Ein Repo mit diesem Namen existiert bereits"}), 400
+
+    entry = {"name": name, "path": path}
+    if github:
+        entry["github"] = github
+    repos.append(entry)
+    git_tools.save_repos(REPOS_FILE, repos)
+    return jsonify({"ok": True, "repos": repos})
+
+
+@app.route("/api/repos/config/<name>", methods=["DELETE"])
+def api_repos_config_delete(name):
+    repos = git_tools.load_repos(REPOS_FILE)
+    new_repos = [r for r in repos if r.get("name") != name]
+    if len(new_repos) == len(repos):
+        return jsonify({"ok": False, "error": "Repo nicht gefunden"}), 404
+    git_tools.save_repos(REPOS_FILE, new_repos)
+    return jsonify({"ok": True, "repos": new_repos})
 
 
 @app.route("/api/repos")
@@ -255,6 +305,13 @@ def api_get_config():
 @app.route("/api/config", methods=["POST"])
 def api_set_config():
     data = request.get_json(force=True)
+    # button_label/button_url sind absichtlich nicht mehr Teil des Schemas --
+    # der Discord-Link-Button ist fest im Code verankert (discord_rpc.py).
+    # Falls jemand diese Felder trotzdem mitschickt, werden sie ignoriert
+    # statt wirkungslos in config.json zu landen.
+    if isinstance(data.get("discord_rpc"), dict):
+        data["discord_rpc"].pop("button_label", None)
+        data["discord_rpc"].pop("button_url", None)
     cfg = load_config()
     cfg.update(data)
     save_config(cfg)
@@ -282,6 +339,22 @@ def get_live_state_text():
 @app.route("/api/discord/status")
 def api_discord_status():
     return jsonify(discord_rpc.get_status())
+
+
+@app.route("/api/telemetry/status")
+def api_telemetry_status():
+    return jsonify(telemetry.get_status())
+
+
+@app.route("/api/telemetry/feedback", methods=["POST"])
+def api_telemetry_feedback():
+    data = request.get_json(force=True) or {}
+    text = (data.get("text") or "").strip()
+    if not text:
+        return jsonify({"ok": False, "error": "leerer Text"}), 400
+    cfg = load_config()
+    ok, err = telemetry.send_feedback(cfg, text)
+    return jsonify({"ok": ok, "error": err})
 
 
 # ---------------------------------------------------------------------------
@@ -538,6 +611,13 @@ if __name__ == "__main__":
         daemon=True,
     )
     rpc_thread.start()
+
+    telemetry_thread = threading.Thread(
+        target=telemetry.run_loop,
+        args=(load_config, save_config),
+        daemon=True,
+    )
+    telemetry_thread.start()
 
     # allow_unsafe_werkzeug: unbedenklich hier, da DEVHUB ausschliesslich an
     # 127.0.0.1 bindet (nur lokaler Single-User-Zugriff, kein oeffentlicher Server).

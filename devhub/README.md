@@ -33,6 +33,11 @@ auf deinem PC.
 - **Setup-Wizard beim ersten Start**: Anzeigename und Repos direkt im
   Dashboard eintragen, kein manuelles config.json-Editieren nötig. Über das
   Zahnrad-Symbol oben rechts jederzeit wieder erreichbar.
+- **Telemetrie & Feedback** (optional, abschaltbar): sendet ein anonymes
+  Heartbeat-Signal an den [DevHub Bot](../devhub-bot/README.md) — keine
+  persönliche Identität, nur eine zufällige Geräte-ID. Zeigt im Discord-
+  Profil des Bots "Watching X Users using DevHub". Feedback lässt sich
+  direkt aus dem Zahnrad-Menü senden, landet in einem Discord-Kanal.
 
 ## Alle Features im Überblick
 
@@ -205,6 +210,27 @@ direkt bearbeiten — beide Wege schreiben in dieselben Dateien.
 
 ---
 
+## 10. Telemetrie & Feedback (optional)
+
+Der Client kann anonyme Nutzungsstatistik an den
+[DevHub Bot](../devhub-bot/README.md) senden und darüber auch Feedback
+einreichen — beides steuerbar im **Zahnrad → Reiter "FEEDBACK"**:
+
+- **Anonyme Nutzungsstatistik**: alle 10s ein Lebenszeichen mit einer
+  zufälligen, rein lokal generierten Geräte-ID (keine Discord- oder
+  sonstige persönliche Identität). Zeigt im Bot-Profil, nicht bei
+  einzelnen Nutzern, wie viele DevHub-Instanzen gerade laufen. Per Toggle
+  jederzeit abschaltbar — hat keinen Einfluss auf die restliche Funktion
+  von DevHub.
+- **Feedback**: Freitext, der direkt in einen Discord-Kanal des DevHub-
+  Teams gepostet wird.
+
+Die Adresse des Bot-Servers wird nicht hart im Code hinterlegt, sondern
+aus einer öffentlichen `server_addr.txt`-Datei auf GitHub gelesen (Details
+siehe Bot-README) — damit ein Server-Umzug nicht jeden Client kaputt macht.
+
+---
+
 ## Architektur
 
 ```
@@ -221,6 +247,7 @@ devhub/
     github_tools.py         Öffentliche GitHub-Repo-Statistiken (mit Cache)
     remote_agent.py          Kommunikation mit verlinkten DEVHUB Agents
     discord_rpc.py           Discord Rich Presence (optional)
+    telemetry.py             Heartbeat/Feedback an den DevHub Bot (optional)
     pty_bridge.py            Terminal-Sessions (PTY <-> WebSocket)
   static/
     index.html               HUD-Layout inkl. Boot-Screen, Terminal-Tabs, Server-Modal

@@ -30,7 +30,7 @@ import time
 from functools import wraps
 from pathlib import Path
 
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, redirect
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from helpers import system_info, git_tools, docker_tools, audit_log  # noqa: E402
@@ -160,6 +160,17 @@ def health():
 # der Nutzer einmalig eintraegt (oder per #token=... in der URL mitgibt),
 # in jedem fetch()-Aufruf als Authorization-Header mit.
 # ---------------------------------------------------------------------------
+
+@app.route("/")
+def root():
+    """Freundliche Weiterleitung, falls jemand nur IP:Port ohne Pfad aufruft."""
+    return redirect("/panel")
+
+
+@app.route("/favicon.ico")
+def favicon():
+    return "", 204
+
 
 @app.route("/panel")
 def panel():
